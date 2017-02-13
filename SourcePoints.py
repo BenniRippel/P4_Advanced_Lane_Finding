@@ -6,13 +6,12 @@ import matplotlib.pyplot as plt
 class Sourcepoints:
     """Get the source points for warping an image to birds eye view"""
     #define 4 source points src = np.float32([[,],[,],[,],[,]])
-    def __init__(self, file='./test_images/straight_lines2.jpg', w=1280, h=720):
-        self.file = file
+    def __init__(self, image, w=1280, h=720):
+        self.img = image
 
         self.source_points = []    # left-top, left_bottom, right_top, right_bottom
 
-        self.dest_points = np.float32([[0.2*w, 0.1*h],[0.2*w, h],[0.8*w, 0.1*h],[0.8*w, h]])
-
+        self.dest_points = np.float32([[0.25*w, 0],[0.25*w, h],[0.75*w, 0],[0.75*w, h]])
 
     def get_transformation_matrix(self):
         """Calculates a transformation matrix and its inverse for image warping"""
@@ -24,13 +23,11 @@ class Sourcepoints:
 
     def process(self, plots=True):
         """Find lane lines within the image
-            param: source_img: source image
+            param: self.img: source image
             param: plots: save the plotted results (T/F)
 
             return: image with drawn lane lines
         """
-        source_img = cv2.cvtColor(cv2.imread(self.file), cv2.COLOR_BGR2RGB)
-
         # DEFINE RELEVANT PARAMETERS
         # orange RGB range
         orange_low = (200, 128, 0)
@@ -59,9 +56,9 @@ class Sourcepoints:
         # START PIPELINE
         # get binary images from thresholding rgb-images with thresholds for...
         # ...orange lines
-        orange = cv2.inRange(source_img, orange_low, orange_high)
+        orange = cv2.inRange(self.img, orange_low, orange_high)
         # ...white lines
-        white = cv2.inRange(source_img, white_low, white_high)
+        white = cv2.inRange(self.img, white_low, white_high)
         # combine the images, for a binary image containing white and orange pixels
         gray = cv2.bitwise_or(orange, white)
         # canny edge detection
@@ -82,11 +79,11 @@ class Sourcepoints:
         left_x, left_y, right_x, right_y, left_len, right_len = self.sort_lines(lines, min_slope)
 
         # fit left and right line, draw them in a black image
-        line_img = np.zeros_like(source_img)
+        line_img = np.zeros_like(self.img)
         self.fit_lane_line(left_x, left_y, left_len, 1, line_img)
         self.fit_lane_line(right_x, right_y, right_len, 1, line_img)
         # get output image: combined lines and source image
-        output_img = self.weighted_img(line_img, source_img, α=0.8, β=1., λ=0.)
+        output_img = self.weighted_img(line_img, self.img, α=0.8, β=1., λ=0.)
 
         # plot images if plots is true
         if plots:
@@ -110,7 +107,7 @@ class Sourcepoints:
 
             # plot hough lines that pass the slope criterion
             plt.figure(4)
-            hough_image = source_img.copy()
+            hough_image = self.img.copy()
             plt.title('Hough Lines that pass the slope criterion')
             self.draw_lines(hough_image, lines, min_slope=0.3, color=[255, 0, 0], thickness=2)
             plt.imshow(hough_image)
