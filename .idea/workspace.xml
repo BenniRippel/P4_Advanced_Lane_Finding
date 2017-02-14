@@ -2,11 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4a92dabe-2d14-4a90-95ab-0a56408f5117" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/output_images/test_undistortion.png" afterPath="$PROJECT_DIR$/output_images/test_undistortion.png" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/output_images/test_warped.png" afterPath="$PROJECT_DIR$/output_images/test_warped.png" />
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/tuneThreshold.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/P4.py" afterPath="$PROJECT_DIR$/P4.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/SourcePoints.py" afterPath="$PROJECT_DIR$/SourcePoints.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -21,14 +18,13 @@
   <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="P4.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="P4.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/P4.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="240">
-              <caret line="43" column="64" lean-forward="false" selection-start-line="43" selection-start-column="64" selection-end-line="43" selection-end-column="64" />
+            <state relative-caret-position="230">
+              <caret line="42" column="0" lean-forward="false" selection-start-line="39" selection-start-column="0" selection-end-line="42" selection-end-column="0" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
-                <element signature="e#2351#3038#0" expanded="false" />
                 <element signature="e#3120#3752#0" expanded="false" />
                 <element signature="e#3839#4477#0" expanded="false" />
                 <element signature="e#4568#5546#0" expanded="false" />
@@ -36,6 +32,22 @@
                 <element signature="e#5965#6785#0" expanded="false" />
                 <element signature="e#6831#7113#0" expanded="false" />
                 <element signature="e#7159#7866#0" expanded="false" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="tuneThreshold.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/tuneThreshold.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="15">
+              <caret line="16" column="28" lean-forward="false" selection-start-line="16" selection-start-column="28" selection-end-line="16" selection-end-column="28" />
+              <folding>
+                <element signature="e#0#18#0" expanded="true" />
+                <element signature="e#1122#1903#0" expanded="false" />
+                <element signature="e#1936#2742#0" expanded="false" />
+                <element signature="e#2830#3529#0" expanded="false" />
+                <element signature="e#3598#4234#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -60,6 +72,7 @@
         <option value="$PROJECT_DIR$/Calibration.py" />
         <option value="$PROJECT_DIR$/SourcePoints.py" />
         <option value="$PROJECT_DIR$/P4.py" />
+        <option value="$PROJECT_DIR$/tuneThreshold.py" />
       </list>
     </option>
   </component>
@@ -90,7 +103,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
@@ -134,6 +146,7 @@
           </PATH>
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -322,7 +335,7 @@
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
-      <option name="time" value="2" />
+      <option name="time" value="3" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -344,9 +357,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="165">
           <caret line="14" column="32" lean-forward="false" selection-start-line="14" selection-start-column="32" selection-end-line="14" selection-end-column="32" />
-          <folding>
-            <element signature="e#0#18#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -356,7 +366,6 @@
           <caret line="48" column="37" lean-forward="false" selection-start-line="48" selection-start-column="37" selection-end-line="48" selection-end-column="37" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#2351#3038#0" expanded="false" />
             <element signature="e#3120#3752#0" expanded="false" />
             <element signature="e#3839#4477#0" expanded="false" />
             <element signature="e#4568#5546#0" expanded="false" />
@@ -372,9 +381,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="75">
           <caret line="8" column="28" lean-forward="false" selection-start-line="8" selection-start-column="28" selection-end-line="8" selection-end-column="28" />
-          <folding>
-            <element signature="e#0#11#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -415,9 +421,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="165">
           <caret line="14" column="32" lean-forward="false" selection-start-line="14" selection-start-column="32" selection-end-line="14" selection-end-column="32" />
-          <folding>
-            <element signature="e#0#18#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -435,9 +438,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="195">
           <caret line="13" column="73" lean-forward="false" selection-start-line="13" selection-start-column="73" selection-end-line="13" selection-end-column="73" />
-          <folding>
-            <element signature="e#0#11#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -476,11 +476,10 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/P4.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="43" column="64" lean-forward="false" selection-start-line="43" selection-start-column="64" selection-end-line="43" selection-end-column="64" />
+        <state relative-caret-position="230">
+          <caret line="42" column="0" lean-forward="false" selection-start-line="39" selection-start-column="0" selection-end-line="42" selection-end-column="0" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#2351#3038#0" expanded="false" />
             <element signature="e#3120#3752#0" expanded="false" />
             <element signature="e#3839#4477#0" expanded="false" />
             <element signature="e#4568#5546#0" expanded="false" />
@@ -488,6 +487,20 @@
             <element signature="e#5965#6785#0" expanded="false" />
             <element signature="e#6831#7113#0" expanded="false" />
             <element signature="e#7159#7866#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tuneThreshold.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="15">
+          <caret line="16" column="28" lean-forward="false" selection-start-line="16" selection-start-column="28" selection-end-line="16" selection-end-column="28" />
+          <folding>
+            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#1122#1903#0" expanded="false" />
+            <element signature="e#1936#2742#0" expanded="false" />
+            <element signature="e#2830#3529#0" expanded="false" />
+            <element signature="e#3598#4234#0" expanded="false" />
           </folding>
         </state>
       </provider>
