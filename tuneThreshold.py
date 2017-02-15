@@ -4,21 +4,33 @@ import matplotlib.pyplot as plt
 
 class TuneThreshold:
 
-    def __init__(self, file='./test_images/test1.jpg'):
+    def __init__(self, file='./test_images/test5.jpg'):
         self.img = cv2.imread(file)
         self.prep_img = []
 
+        # eher für mittlere entfernungen
         # Thresholds: good values for l channel (im l chan ist die gelbe linie fast nie da)
         # X Sobel: 30, 150, 7
         # Y Sobel: 35, 150, 7
         # Mag: 50, 150, 7
         # Dir: 80, 120, 15
 
-        #TODO: statt l den s channel nehmen
+        # Thresholds: good values for s channel
+        # X Sobel: 30, 150, 7
+        # Y Sobel: 35, 150, 7
+        # Mag: 50, 150, 7
+        # Dir: 80, 120, 15
 
-    def combine(self):
+        # colorspace thresh hilft im vordergrund
+        #thresh S colorchannel for yellow
+        # 185, 255
+
+        #thresh L colorchannel for white
+        # 200, 255
+
+    def combine_grad(self):
         # preprocess image
-        self.prep_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:,:,2]
+        self.prep_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:, :, 1]
 
         th_x=self.abs_sobel_thresh(orient='x', sobel_kernel=7, thresh=(30, 150))
         th_y=self.abs_sobel_thresh(orient='y', sobel_kernel=7, thresh=(35, 150))
@@ -27,26 +39,67 @@ class TuneThreshold:
 
         # Combine thresholds
         combined = np.zeros_like(self.prep_img)
-        combined[((th_m == 1) & (th_d == 1))] = 1
+        combined[((th_m == 1) & (th_d == 1)) | ((th_x==1) & (th_y==1))] = 1
 
         fig=plt.figure()
-        plt.imshow(self.prep_img, cmap='gray')
+        plt.imshow(combined, cmap='gray')
         plt.show()
+
+    def combine_color(self):
+        white = self.select_color(200, 255, 1)
+        yellow = self.select_color(185, 255, 2)
+
+        # Combine thresholds
+        combined = np.zeros_like(white)
+        combined[((white == 1) | (yellow == 1))] = 1
+
+        fig=plt.figure()
+        plt.imshow(combined, cmap='gray')
+        plt.show()
+
+
+    def tune_preprocessing(self):
+        # named window
+        cv2.namedWindow('Tune')
+        # create trackbars
+        cb = self.select_color
+        cv2.createTrackbar('Lower Threshold', 'Tune', 0, 255, cb)
+        cv2.createTrackbar('Upper Threshold', 'Tune', 0, 255, cb)
+        lower = 0
+        upper=255
+        while True:
+            thresh = cb(lower, upper)
+
+            cv2.imshow('Tune', 255*thresh)
+            k = cv2.waitKey(1) & 0xFF
+            if k == 27:
+                break
+
+            # get current positions of four trackbars
+            lower = cv2.getTrackbarPos('Lower Threshold', 'Tune')
+            upper = cv2.getTrackbarPos('Upper Threshold', 'Tune')
+
+    def select_color(self, lower, upper, channel=2):
+        chan = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:, :, channel]
+        ret = np.zeros_like(chan)
+        ret[(chan<upper) & (chan>lower)] =1
+        return ret
 
     def tune(self):
         # named window
         cv2.namedWindow('Tune')
         # preprocess image
-        self.prep_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:,:,1]
+        self.prep_img = self.select_color(20,180,2)
         # create trackbars
-        cb = self.mag_thresh
+        cb = self.abs_sobel_thresh
         cv2.createTrackbar('Lower Threshold', 'Tune', 0, 255, cb)
         cv2.createTrackbar('Upper Threshold', 'Tune', 0, 255, cb)
 
         lower = 0
         upper=255
         while True:
-            thresh = self.mag_thresh(sobel_kernel=7, thresh=(lower, upper))
+            thresh = self.abs_sobel_thresh(orient='y', sobel_kernel=3, thresh=(lower, upper))
+
             cv2.imshow('Tune', 255*thresh)
             k = cv2.waitKey(1) & 0xFF
             if k == 27:
@@ -60,7 +113,7 @@ class TuneThreshold:
         # named window
         cv2.namedWindow('Tune')
         # preprocess image
-        self.prep_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:,:,1]
+        self.prep_img = self.select_color(20,180)
         # create trackbars
         cb = self.dir_threshold
         cv2.createTrackbar('Lower Threshold', 'Tune', 0, 314, cb)
@@ -122,7 +175,7 @@ class TuneThreshold:
         return binary_output
 
 def main():
-    TuneThreshold().combine()
+    TuneThreshold().tune()
 # executes main() if script is executed directly as the main function and not loaded as module
 if __name__ == '__main__':
     main()
