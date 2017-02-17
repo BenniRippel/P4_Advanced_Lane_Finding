@@ -129,7 +129,7 @@ class Sourcepoints:
             if y_max < 600:  # adjust min_y_value for challenge video
                 min_y_value = min_y_factor * y_max  # min y value, i.e. y value of the top of the lane line
             else:
-                min_y_value = 0.62 * y_max  # min y value, i.e. y value of the top of the lane line
+                min_y_value = 0.64 * y_max  # min y value, i.e. y value of the top of the lane line
             # calc weights dependend of line length
             weights = np.divide(lengths, sum(lengths))
             line = np.poly1d(np.polyfit(y_values, x_values, degree, w=weights))  # construct polynomial

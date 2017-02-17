@@ -19,42 +19,158 @@ class P4:
         self.Minv=[]
 
     def run(self):
-        img = cv2.imread('./test_images/test1.jpg')
+        img = cv2.imread('./test_images/test6.jpg')
         warp = self.warp_image(img)
-        self.threshold_image(warp, plot=True)
+        warped_bin = self.threshold_image(warp, plot=False)
+        self.slidWin(warped_bin)
+        plt.show()
 
-    def threshold_image(self, image, plot=False):
+    def slidWin(self, binary_warped, margin=50, minpix=50):
+        """Udacity implementation of sliding Windows and fit polynomial"""
+
+        # Assuming you have created a warped binary image called "binary_warped"
+        # Take a histogram of the bottom half of the image
+        histogram = np.sum(binary_warped[binary_warped.shape[0] / 2:, :], axis=0)
+        # Create an output image to draw on and  visualize the result
+        out_img = np.dstack((binary_warped, binary_warped, binary_warped)) * 255
+        # Find the peak of the left and right halves of the histogram
+        # These will be the starting point for the left and right lines
+        midpoint = np.int(histogram.shape[0] / 2)
+        leftx_base = np.argmax(histogram[:midpoint])
+        rightx_base = np.argmax(histogram[midpoint:]) + midpoint
+
+        # Choose the number of sliding windows
+        nwindows = 9
+        # Set height of windows
+        window_height = np.int(binary_warped.shape[0] / nwindows)
+        # Identify the x and y positions of all nonzero pixels in the image
+        nonzero = binary_warped.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+        # Current positions to be updated for each window
+        leftx_current = leftx_base
+        rightx_current = rightx_base
+        # Set the width of the windows +/- margin
+        # margin = 100
+        # Set minimum number of pixels found to recenter window
+        # minpix = 50
+        # Create empty lists to receive left and right lane pixel indices
+        left_lane_inds = []
+        right_lane_inds = []
+
+        # Step through the windows one by one
+        for window in range(nwindows):
+            # Identify window boundaries in x and y (and right and left)
+            win_y_low = binary_warped.shape[0] - (window + 1) * window_height
+            win_y_high = binary_warped.shape[0] - window * window_height
+            win_xleft_low = leftx_current - margin
+            win_xleft_high = leftx_current + margin
+            win_xright_low = rightx_current - margin
+            win_xright_high = rightx_current + margin
+            # Draw the windows on the visualization image
+            cv2.rectangle(out_img, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high), (0, 255, 0), 2)
+            cv2.rectangle(out_img, (win_xright_low, win_y_low), (win_xright_high, win_y_high), (0, 255, 0), 2)
+            # Identify the nonzero pixels in x and y within the window
+            good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) & (
+            nonzerox < win_xleft_high)).nonzero()[0]
+            good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) & (
+            nonzerox < win_xright_high)).nonzero()[0]
+            # Append these indices to the lists
+            left_lane_inds.append(good_left_inds)
+            right_lane_inds.append(good_right_inds)
+            # If you found > minpix pixels, recenter next window on their mean position
+            if len(good_left_inds) > minpix:
+                leftx_current = np.int(np.median(nonzerox[good_left_inds]))
+            if len(good_right_inds) > minpix:
+                rightx_current = np.int(np.median(nonzerox[good_right_inds]))
+
+        # Concatenate the arrays of indices
+        left_lane_inds = np.concatenate(left_lane_inds)
+        right_lane_inds = np.concatenate(right_lane_inds)
+
+        # Extract left and right line pixel positions
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+
+        # Fit a second order polynomial to each
+        left_fit = np.polyfit(lefty, leftx, 2)
+        right_fit = np.polyfit(righty, rightx, 2)
+
+        # Generate x and y values for plotting
+        ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
+        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+
+        out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+        out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+        plt.imshow(out_img)
+        plt.plot(left_fitx, ploty, color='yellow')
+        plt.plot(right_fitx, ploty, color='yellow')
+        plt.xlim(0, 1280)
+        plt.ylim(720, 0)
+
+
+    def threshold_image(self, image, plot=False, save=False):
         """Apply different thresholds to the input image to extract lane lines"""
-        # Choose a Sobel kernel size
-        ksize = 31  # Choose a larger odd number to smooth gradient measurements
-        k_mag = 31
-        k_dir = 15
 
-        channel = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,1]
-        # Apply each of the thresholding functions
-        gradx = self.abs_sobel_thresh(channel, orient='x', sobel_kernel=ksize, thresh=(20, 100))
-        grady = self.abs_sobel_thresh(channel, orient='y', sobel_kernel=ksize, thresh=(20, 100))
-        mag_binary = self.mag_thresh(channel, sobel_kernel=k_mag, mag_thresh=(30, 100))
-        dir_binary = self.dir_threshold(channel, sobel_kernel=k_dir, thresh=(0.7, 1.2))
+        grad_1 = self.grad_thresh(image, chan=1)
+        grad_2 = self.grad_thresh(image, chan=2)
 
-        # Combine thresholds
-        combined = np.zeros_like(dir_binary)
-        combined[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1
-        #combined[(mag_binary == 1) & (dir_binary == 1)] = 1
-        #TODO: plot alle 4 threshs in einzelne figures zum tunen
-        # kernel = np.ones((3,3), np.uint8)
-        # combined = cv2.morphologyEx(combined, cv2.MORPH_OPEN, kernel)
+        grad = np.zeros_like(grad_1)
+        grad[(grad_1 == 1) | (grad_2 == 1)]=1
+
+        ret = np.zeros_like(grad_1)
+        ret[(grad == 1) | (self.combine_color(image) == 1)] = 1
+
+        # Plot stacked thresholds
         if plot:
             # Plot the result
-            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 9))
-            f.tight_layout()
-            ax1.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-            ax1.set_title('Original Image', fontsize=50)
-            ax2.imshow(combined, cmap='gray')
-            ax2.set_title('Thresholded ', fontsize=50)
-            plt.subplots_adjust(left=0., right=1, top=0.9, bottom=0.)
-            plt.savefig(self.results + 'test_threshold.png', bbox_inches='tight')
-            plt.show()
+            color = np.zeros_like(grad)
+            color[(self.combine_color(image) == 1)] = 1
+            stacked = np.dstack((np.zeros_like(grad), color, grad))
+            fig=plt.figure()
+            fig.add_subplot(1, 2, 1)
+            plt.imshow(stacked*255)
+            plt.title('Stacked Threshold\n S & L-Channel Color Threshold (green)\n and Gradient Threshold (blue)',
+                      fontsize=10)
+            fig.add_subplot(1, 2, 2)
+            plt.imshow(ret*255, cmap='gray')
+            plt.title('Combined Threshold ', fontsize=10)
+            if save:
+                plt.savefig(self.results + 'test_threshold.png', bbox_inches='tight', orientation='landscape')
+        return ret
+
+    def grad_thresh(self, image, chan=1):
+        if chan==1:
+            m_low = 30
+        else:
+            m_low = 20
+        channel = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,chan]
+        # Apply each of the thresholding functions
+        th_x=self.abs_sobel_thresh(channel, orient='x', sobel_kernel=7, thresh=(30, 255))
+        th_y=self.abs_sobel_thresh(channel, orient='y', sobel_kernel=7, thresh=(35, 255))
+        th_m=self.mag_thresh(channel, sobel_kernel=5, thresh=(m_low, 255))
+        th_d=self.dir_threshold(channel, sobel_kernel=7, thresh=(-0.56, 1.3))
+        ret = np.zeros_like(channel)
+        ret[((th_m == 1) & (th_d == 1)) | ((th_x == 1) & (th_y == 1)) | (self.combine_color(image) == 1)] = 1
+        return ret
+
+    def select_color(self, channel, lower, upper):
+        """Color thresholding"""
+        ret = np.zeros_like(channel)
+        ret[(channel<upper) & (channel>lower)] =1
+        return ret
+
+    def combine_color(self, image):
+        """Combine colorchanel thresholds"""
+        white = self.select_color(cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,1], 200, 255)
+        yellow = self.select_color(cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,2], 185, 255)
+        # Combine thresholds
+        combined = np.zeros_like(white)
+        combined[((white == 1) | (yellow == 1))] = 1
+        return combined
 
     def abs_sobel_thresh(self, channel, orient='x', sobel_kernel=3, thresh=(0, 255)):
         """Apply 'Sobel Gradient' threshold to an image channel """
@@ -72,7 +188,7 @@ class P4:
         binary_output[(scaled >= min(thresh)) & (scaled <= max(thresh))] = 1
         return binary_output
 
-    def mag_thresh(self, channel, sobel_kernel=3, mag_thresh=(0, 255)):
+    def mag_thresh(self, channel, sobel_kernel=3, thresh=(0, 255)):
         """Apply 'Magnitude of the Gradient' threshold to an image channel """
         sob_x = cv2.Sobel(channel, cv2.CV_64F, 1, 0, ksize=sobel_kernel)
         sob_y = cv2.Sobel(channel, cv2.CV_64F, 0, 1, ksize=sobel_kernel)
@@ -82,7 +198,7 @@ class P4:
         scaled = np.uint8(255 * mag / np.max(mag))
         # Create a binary mask where mag thresholds are met
         binary_output = np.zeros_like(scaled)
-        binary_output[(scaled < max(mag_thresh)) & (scaled > min(mag_thresh))] = 1
+        binary_output[(scaled < max(thresh)) & (scaled > min(thresh))] = 1
         return binary_output
 
     def dir_threshold(self, channel, sobel_kernel=3, thresh=(0, np.pi / 2)):
