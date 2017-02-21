@@ -83,7 +83,7 @@ class Sourcepoints:
         self.fit_lane_line(left_x, left_y, left_len, 1, line_img)
         self.fit_lane_line(right_x, right_y, right_len, 1, line_img)
         # get output image: combined lines and source image
-        output_img = self.weighted_img(line_img, self.img, α=0.8, β=1., λ=0.)
+        output_img = self.weighted_img(line_img, self.img, alpha=0.8, beta=1., gamma=0.)
 
         # plot images if plots is true
         if plots:
@@ -114,7 +114,7 @@ class Sourcepoints:
             plt.show()
 
 
-    def fit_lane_line(self, x_values, y_values, lengths, degree, image, min_y_factor=0.6):
+    def fit_lane_line(self, x_values, y_values, lengths, degree, image, min_y_factor=0.62):
         """Fit a lane line with np.polyfit and plot it in image
             param: x_values: x values of all HoughLines assigned to this lane line
             param: y_values: y values of all HoughLines assigned to this lane line
@@ -126,10 +126,7 @@ class Sourcepoints:
         """
         if x_values and y_values:
             y_max = image.shape[0]  # max y value of the image
-            if y_max < 600:  # adjust min_y_value for challenge video
-                min_y_value = min_y_factor * y_max  # min y value, i.e. y value of the top of the lane line
-            else:
-                min_y_value = 0.64 * y_max  # min y value, i.e. y value of the top of the lane line
+            min_y_value = min_y_factor * y_max  # min y value, i.e. y value of the top of the lane line
             # calc weights dependend of line length
             weights = np.divide(lengths, sum(lengths))
             line = np.poly1d(np.polyfit(y_values, x_values, degree, w=weights))  # construct polynomial
@@ -225,7 +222,7 @@ class Sourcepoints:
                     cv2.line(img, (x1, y1), (x2, y2), color, thickness)
 
 
-    def weighted_img(self, img, initial_img, α=0.8, β=1., λ=0.):
+    def weighted_img(self, img, initial_img, alpha=0.8, beta=1., gamma=0.):
         """
         `img` is the output of the hough_lines(), An image with lines drawn on it.
         Should be a blank image (all black) with lines drawn on it.
@@ -234,10 +231,10 @@ class Sourcepoints:
 
         The result image is computed as follows:
 
-        initial_img * α + img * β + λ
+        initial_img * alpha + img * beta + gamma
         NOTE: initial_img and img must be the same shape!
         """
-        return cv2.addWeighted(initial_img, α, img, β, λ)
+        return cv2.addWeighted(initial_img, alpha, img, beta, gamma)
 
 
     def hough_lines(self, img, rho, theta, threshold, min_line_len, max_line_gap):

@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import math
+from moviepy.editor import VideoFileClip
+
 
 import Calibration
 import SourcePoints
@@ -18,14 +20,63 @@ class P4:
         self.M=[]
         self.Minv=[]
 
-    def run(self):
-        img = cv2.imread('./test_images/test6.jpg')
-        warp = self.warp_image(img)
-        warped_bin = self.threshold_image(warp, plot=False)
-        self.slidWin(warped_bin)
+    def run_video(self, video='./project_video.mp4'):
+        out_file = video[:-4]+'_output.mp4'   # output file
+
+        clip = VideoFileClip(video)   #read video
+        output=clip.fl_image(self.process_frame)   # proces video; function expects color images
+        output.write_videofile(out_file, audio=False)    # write video
+
+
+    def run_image(self, image='./test_images/test1.jpg', save = False):
+        img = cv2.imread(image)    # read image
+        warp = self.warp_image(img)   # calibrate, undistort and warp
+        warped_bin = self.threshold_image(warp, plot=True, save=save)    # threshold image
+        left_fit, right_fit = self.slidWin(warped_bin, plot=True, save=save)    # find lines in thresholded img
+        self.draw_warped(warp, img, left_fit, right_fit, save=save)    # draw lines
         plt.show()
 
-    def slidWin(self, binary_warped, margin=50, minpix=50):
+
+    def process_frame(self, RGB_frame):
+        img = cv2.cvtColor(RGB_frame, cv2.COLOR_RGB2BGR) # convert to bgr
+        warp = self.warp_image(img)   # calibrate, undistort and warp
+        warped_bin = self.threshold_image(warp)    # threshold image
+        left_fit, right_fit = self.slidWin(warped_bin)    # find lines in thresholded img
+        result = self.draw_warped(warp, img, left_fit, right_fit)    # draw lines
+
+        return result
+
+    def draw_warped(self, warped, image, left_fit, right_fit, save=False):
+        """Draw found lane lines in RGB Image"""
+        # Create an image to draw the lines on
+        color_warp = np.zeros_like(warped).astype(np.uint8)
+        print(color_warp.shape)
+
+        # define ploty, left_fitx, right_fit_x
+        ploty = np.linspace(0, warped.shape[0] - 1, warped.shape[0])
+        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+
+        # Recast the x and y points into usable format for cv2.fillPoly()
+        pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+        pts = np.hstack((pts_left, pts_right))
+
+        # Draw the lane onto the warped blank image
+        cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
+
+        # Warp the blank back to original image space using inverse perspective matrix (Minv)
+        newwarp = cv2.warpPerspective(color_warp, self.Minv, (image.shape[1], image.shape[0]))
+        # Combine the result with the original image
+        result = cv2.addWeighted(self.undistort_image(image), 1, newwarp, 0.3, 0)
+        result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+        plt.figure(figsize=(8,6), dpi=300)
+        plt.imshow(result)
+        if save:
+            plt.savefig(self.results + 'result.png', bbox_inches='tight')
+        return result
+
+    def slidWin(self, binary_warped, margin=100, minpix=50, plot=False, save=False):
         """Udacity implementation of sliding Windows and fit polynomial"""
 
         # Assuming you have created a warped binary image called "binary_warped"
@@ -98,19 +149,23 @@ class P4:
         left_fit = np.polyfit(lefty, leftx, 2)
         right_fit = np.polyfit(righty, rightx, 2)
 
-        # Generate x and y values for plotting
-        ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
-        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+        if plot:
+            # Generate x and y values for plotting
+            ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
+            left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+            right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
 
-        out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-        out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
-        plt.imshow(out_img)
-        plt.plot(left_fitx, ploty, color='yellow')
-        plt.plot(right_fitx, ploty, color='yellow')
-        plt.xlim(0, 1280)
-        plt.ylim(720, 0)
-
+            out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+            out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+            plt.figure(figsize=(8,6), dpi=300)
+            plt.imshow(out_img)
+            plt.plot(left_fitx, ploty, color='yellow')
+            plt.plot(right_fitx, ploty, color='yellow')
+            plt.xlim(0, 1280)
+            plt.ylim(720, 0)
+            if save:
+                plt.savefig(self.results + 'test_lane_detection.png', bbox_inches='tight')
+        return left_fit, right_fit
 
     def threshold_image(self, image, plot=False, save=False):
         """Apply different thresholds to the input image to extract lane lines"""
@@ -130,7 +185,7 @@ class P4:
             color = np.zeros_like(grad)
             color[(self.combine_color(image) == 1)] = 1
             stacked = np.dstack((np.zeros_like(grad), color, grad))
-            fig=plt.figure()
+            fig=plt.figure(figsize=(8,6), dpi=300)
             fig.add_subplot(1, 2, 1)
             plt.imshow(stacked*255)
             plt.title('Stacked Threshold\n S & L-Channel Color Threshold (green)\n and Gradient Threshold (blue)',
@@ -214,9 +269,9 @@ class P4:
         return binary_output
 
     def warp_image(self, img=cv2.imread('./test_images/test5.jpg'), plot=False):
-        """Undistort and warp image to birds eye view"""
+        """Undistort and warp image to birds eye view, expects bgr images"""
         img_size = (img.shape[1], img.shape[0])    # get image size
-        if not self.M:   # check if transformation matrices are defined, if not: get them
+        if self.M == []:   # check if transformation matrices are defined, if not: get them
             source_img = self.undistort_image(cv2.imread('./test_images/straight_lines2.jpg'))
             self.get_transform_matrices(source_img)
         # undistort and warp the image
@@ -224,7 +279,7 @@ class P4:
 
         if plot:
             # plot warped and original image and save it to result_folder
-            fig = plt.figure()
+            fig = plt.figure(figsize=(8,6), dpi=300)
             fig.add_subplot(1, 2, 1)
             plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
             plt.title('Undistorted Image')
@@ -297,7 +352,7 @@ def main():
     #images_folder = args.folder_images
     #results_folder = args.results_folder
 
-    P4(result_fldr='./output_images/').run()
+    P4(result_fldr='./output_images/').run_video()
     #P4(result_fldr='./output_images/').warp_image(plot=True)
 
 # executes main() if script is executed directly as the main function and not loaded as module
