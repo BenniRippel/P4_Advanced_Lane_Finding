@@ -114,7 +114,7 @@ class Sourcepoints:
             plt.show()
 
 
-    def fit_lane_line(self, x_values, y_values, lengths, degree, image, min_y_factor=0.62):
+    def fit_lane_line(self, x_values, y_values, lengths, degree, image, min_y_factor=0.63):
         """Fit a lane line with np.polyfit and plot it in image
             param: x_values: x values of all HoughLines assigned to this lane line
             param: y_values: y values of all HoughLines assigned to this lane line

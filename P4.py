@@ -3,6 +3,7 @@ import cv2
 import matplotlib.pyplot as plt
 import math
 from moviepy.editor import VideoFileClip
+from collections import deque
 
 
 import Calibration
@@ -19,40 +20,101 @@ class P4:
         # transformation matrices
         self.M=[]
         self.Minv=[]
+        # deques for temporal information
+        self.left_fit = deque(maxlen=10)
+        self.right_fit = deque(maxlen=10)
+        self.radius = deque(maxlen=10)
+        self.offset = deque(maxlen=10)
+        self.valid = deque(maxlen=10)
 
-    def run_video(self, video='./project_video.mp4'):
+
+    def run_video(self, video='./challenge_video.mp4'):
+        """Run the Lane Finding Pipeline on a input video"""
         out_file = video[:-4]+'_output.mp4'   # output file
 
         clip = VideoFileClip(video)   #read video
         output=clip.fl_image(self.process_frame)   # proces video; function expects color images
+
         output.write_videofile(out_file, audio=False)    # write video
 
-
     def run_image(self, image='./test_images/test1.jpg', save = False):
+        """Run the Lane Finding Pipeline on a single input image"""
         img = cv2.imread(image)    # read image
         warp = self.warp_image(img)   # calibrate, undistort and warp
         warped_bin = self.threshold_image(warp, plot=True, save=save)    # threshold image
-        left_fit, right_fit = self.slidWin(warped_bin, plot=True, save=save)    # find lines in thresholded img
-        self.draw_warped(warp, img, left_fit, right_fit, save=save)    # draw lines
+        self.fit_lines(warped_bin, plot=True, save=save)    # find lines in thresholded img
+        self.draw_warped(warp, img, save=save)    # draw lines
         plt.show()
 
-
     def process_frame(self, RGB_frame):
+        """Frame processing pipeline"""
         img = cv2.cvtColor(RGB_frame, cv2.COLOR_RGB2BGR) # convert to bgr
         warp = self.warp_image(img)   # calibrate, undistort and warp
         warped_bin = self.threshold_image(warp)    # threshold image
-        left_fit, right_fit = self.slidWin(warped_bin)    # find lines in thresholded img
-        result = self.draw_warped(warp, img, left_fit, right_fit)    # draw lines
-
+        self.fit_lines(warped_bin)    # find lines in thresholded img
+        result = self.draw_warped(warp, img)    # draw lines
+        result = self.write_to_frame(result)
+        result = self.add_info_img(result, warped_bin)
         return result
 
-    def draw_warped(self, warped, image, left_fit, right_fit, save=False):
+    def add_info_img(self, frame, img):
+        """Add the imm to the upper right corner of the frame, scale by 1/3"""
+        h, w, c = frame.shape
+        h_n = int(h/3)
+        w_n = int(w/3)
+        img = cv2.resize(img*255, (w_n, h_n), interpolation = cv2.INTER_AREA)
+        img = np.dstack((img, img, img))
+        frame[:h_n, -w_n:, :] = img
+        return frame
+
+    def write_to_frame(self, frame):
+        """Write test to frame"""
+        cv2.putText(frame, "Radius: %0.0f m \n Offset: %0.0f m" % (np.mean(self.radius), np.mean(self.offset)),
+                    tuple([50, 50]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        return frame
+
+    def calc_rad_curvature(self, lefty, leftx, righty, rightx):
+        """Radius of curvature taken from udacity course"""
+        # Define conversions in x and y from pixels space to meters
+        ym_per_pix = 30 / 720  # meters per pixel in y dimension
+        xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
+
+        left_eval = np.max(lefty)
+        right_eval = np.max(righty)
+
+        # Fit new polynomials to x,y in world space
+        left_fit_cr = np.polyfit(lefty * ym_per_pix, leftx * xm_per_pix, 2)
+        right_fit_cr = np.polyfit(righty * ym_per_pix, rightx * xm_per_pix, 2)
+        # Calculate the new radii of curvature
+        left_curverad = ((1 + (2 * left_fit_cr[0] * left_eval * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / \
+                        np.absolute(2 * left_fit_cr[0])
+        right_curverad = ((1 + (2 * right_fit_cr[0] * right_eval * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / \
+                         np.absolute(2 * right_fit_cr[0])
+        self.radius.append(left_curverad+right_curverad*0.5)
+
+    def calc_car_offset(self, frame):
+        """calculates the cars offset from the center of the lane"""
+        xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
+
+        left_fit=np.mean(self.left_fit, axis=0)
+        right_fit=np.mean(self.right_fit, axis=0)
+
+        eval = frame.shape[0]-1
+
+        left_l = left_fit[0] * eval ** 2 + left_fit[1] * eval + left_fit[2]
+        right_l = right_fit[0] * eval ** 2 + right_fit[1] * eval + right_fit[2]
+
+        self.offset.append((np.mean([left_l, right_l])-frame.shape[1])*xm_per_pix)
+
+    def draw_warped(self, warped, image, save=False):
         """Draw found lane lines in RGB Image"""
         # Create an image to draw the lines on
         color_warp = np.zeros_like(warped).astype(np.uint8)
-        print(color_warp.shape)
 
         # define ploty, left_fitx, right_fit_x
+        left_fit=np.mean(self.left_fit, axis=0)
+        right_fit=np.mean(self.right_fit, axis=0)
         ploty = np.linspace(0, warped.shape[0] - 1, warped.shape[0])
         left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
         right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
@@ -76,9 +138,26 @@ class P4:
             plt.savefig(self.results + 'result.png', bbox_inches='tight')
         return result
 
-    def slidWin(self, binary_warped, margin=100, minpix=50, plot=False, save=False):
+    def fit_lines(self, binary_warped, margin=100, minpix=50, plot=False, save=False):
         """Udacity implementation of sliding Windows and fit polynomial"""
 
+        # get left and right fit (find new lines if no good fit occured for several frames as well as ate the first frame)
+        if not self.valid:
+
+            left_fit, right_fit = self.find_new_lines(binary_warped)
+            self.valid.append(1)
+        else:
+            left_fit, right_fit = self.find_next_lines(binary_warped)
+        # valid_line check
+        # check for approx same curvature, for right horizontal distance and  approx parallel
+
+        #TODO: checks obs passt
+        # append to deques
+        self.left_fit.append(left_fit)
+        self.right_fit.append(right_fit)
+
+
+    def find_new_lines(self, binary_warped, margin=100, minpix=50, plot=False, save=False):
         # Assuming you have created a warped binary image called "binary_warped"
         # Take a histogram of the bottom half of the image
         histogram = np.sum(binary_warped[binary_warped.shape[0] / 2:, :], axis=0)
@@ -101,10 +180,6 @@ class P4:
         # Current positions to be updated for each window
         leftx_current = leftx_base
         rightx_current = rightx_base
-        # Set the width of the windows +/- margin
-        # margin = 100
-        # Set minimum number of pixels found to recenter window
-        # minpix = 50
         # Create empty lists to receive left and right lane pixel indices
         left_lane_inds = []
         right_lane_inds = []
@@ -149,6 +224,9 @@ class P4:
         left_fit = np.polyfit(lefty, leftx, 2)
         right_fit = np.polyfit(righty, rightx, 2)
 
+        # calc radius of curvature
+        self.calc_rad_curvature(lefty, leftx, righty, rightx)
+
         if plot:
             # Generate x and y values for plotting
             ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0])
@@ -165,6 +243,34 @@ class P4:
             plt.ylim(720, 0)
             if save:
                 plt.savefig(self.results + 'test_lane_detection.png', bbox_inches='tight')
+        return left_fit, right_fit
+
+    def find_next_lines(self, binary_warped, margin=100):
+        left_fit=np.mean(self.left_fit, axis=0)
+        right_fit=np.mean(self.right_fit, axis=0)
+
+
+        nonzero = binary_warped.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+        left_lane_inds = (
+        (nonzerox > (left_fit[0] * (nonzeroy ** 2) + left_fit[1] * nonzeroy + left_fit[2] - margin)) & (
+        nonzerox < (left_fit[0] * (nonzeroy ** 2) + left_fit[1] * nonzeroy + left_fit[2] + margin)))
+        right_lane_inds = (
+        (nonzerox > (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] - margin)) & (
+        nonzerox < (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] + margin)))
+
+        # Again, extract left and right line pixel positions
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+        # Fit a second order polynomial to each
+        left_fit = np.polyfit(lefty, leftx, 2)
+        right_fit = np.polyfit(righty, rightx, 2)
+        # calc radius of curvature
+        self.calc_rad_curvature(lefty, leftx, righty, rightx)
+
         return left_fit, right_fit
 
     def threshold_image(self, image, plot=False, save=False):
@@ -353,7 +459,7 @@ def main():
     #results_folder = args.results_folder
 
     P4(result_fldr='./output_images/').run_video()
-    #P4(result_fldr='./output_images/').warp_image(plot=True)
+    # P4(result_fldr='./output_images/').run_image()
 
 # executes main() if script is executed directly as the main function and not loaded as module
 if __name__ == '__main__':
