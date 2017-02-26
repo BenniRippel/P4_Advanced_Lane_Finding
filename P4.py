@@ -20,12 +20,22 @@ class P4:
         # transformation matrices
         self.M=[]
         self.Minv=[]
+        # Define conversions in x and y from pixels space to meters
+        self.ym_per_pix = 30 / 720  # meters per pixel in y dimension
+        self.xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
         # deques for temporal information
         self.left_fit = deque(maxlen=10)
         self.right_fit = deque(maxlen=10)
         self.radius = deque(maxlen=10)
         self.offset = deque(maxlen=10)
-        self.valid = deque(maxlen=10)
+        self.valid = deque(maxlen=5)
+        # data for current frame
+        self.current_left_fit_px = []
+        self.current_right_fit_px = []
+        self.current_left_fit_m = []
+        self.current_right_fit_m = []
+        self.left_curverad = []
+        self.right_curverad = []
 
 
     def run_video(self, video='./challenge_video.mp4'):
@@ -69,29 +79,27 @@ class P4:
 
     def write_to_frame(self, frame):
         """Write test to frame"""
-        cv2.putText(frame, "Radius: %0.0f m \n Offset: %0.0f m" % (np.mean(self.radius), np.mean(self.offset)),
+        cv2.putText(frame, "Radius: %0.0f m" % (np.mean(self.radius)),
                     tuple([50, 50]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        cv2.putText(frame, "Offset: %0.0f m" % (np.mean(self.offset)),
+                    tuple([50, 80]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         return frame
 
     def calc_rad_curvature(self, lefty, leftx, righty, rightx):
         """Radius of curvature taken from udacity course"""
-        # Define conversions in x and y from pixels space to meters
-        ym_per_pix = 30 / 720  # meters per pixel in y dimension
-        xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
 
         left_eval = np.max(lefty)
         right_eval = np.max(righty)
 
         # Fit new polynomials to x,y in world space
-        left_fit_cr = np.polyfit(lefty * ym_per_pix, leftx * xm_per_pix, 2)
-        right_fit_cr = np.polyfit(righty * ym_per_pix, rightx * xm_per_pix, 2)
+        self.current_left_fit_m = np.polyfit(lefty * self.ym_per_pix, leftx * self.xm_per_pix, 2)
+        self.current_right_fit_m = np.polyfit(righty * self.ym_per_pix, rightx * self.xm_per_pix, 2)
         # Calculate the new radii of curvature
-        left_curverad = ((1 + (2 * left_fit_cr[0] * left_eval * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / \
-                        np.absolute(2 * left_fit_cr[0])
-        right_curverad = ((1 + (2 * right_fit_cr[0] * right_eval * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / \
-                         np.absolute(2 * right_fit_cr[0])
-        self.radius.append(left_curverad+right_curverad*0.5)
+        self.left_curverad = ((1 + (2 * self.current_left_fit_m[0] * left_eval * self.ym_per_pix +
+                                    self.current_left_fit_m[1]) ** 2) ** 1.5) / np.absolute(2 * self.current_left_fit_m[0])
+        self.right_curverad = ((1 + (2 * self.current_right_fit_m[0] * right_eval * self.ym_per_pix +
+                                     self.current_right_fit_m[1]) ** 2) ** 1.5) / np.absolute(2 * self.current_right_fit_m[0])
 
     def calc_car_offset(self, frame):
         """calculates the cars offset from the center of the lane"""
@@ -142,20 +150,39 @@ class P4:
         """Udacity implementation of sliding Windows and fit polynomial"""
 
         # get left and right fit (find new lines if no good fit occured for several frames as well as ate the first frame)
-        if not self.valid:
-
-            left_fit, right_fit = self.find_new_lines(binary_warped)
-            self.valid.append(1)
+        if not np.any(self.valid):
+            self.current_left_fit_px, self.current_right_fit_px = self.find_new_lines(binary_warped)
         else:
-            left_fit, right_fit = self.find_next_lines(binary_warped)
+            self.current_left_fit_px, self.current_right_fit_px = self.find_next_lines(binary_warped)
         # valid_line check
         # check for approx same curvature, for right horizontal distance and  approx parallel
 
-        #TODO: checks obs passt
+        #TODO: checks obs passt, wenn ja append True zu valid und den fit zu left/right fit
         # append to deques
-        self.left_fit.append(left_fit)
-        self.right_fit.append(right_fit)
+        print('Lane Check: ', self.lane_dist_check())
+        if self.lane_dist_check():
+            self.left_fit.append(self.current_left_fit_px)
+            self.right_fit.append(self.current_right_fit_px)
+            self.valid.append(True)
+            self.radius.append((self.left_curverad + self.right_curverad) * 0.5)
 
+        else:
+            self.valid.append(False)
+
+    def lane_dist_check(self, upper=6, lower=1):
+        ran=np.arange(1,21)   # range from 1 - 20 m
+        left = self.current_left_fit_m[0] * ran ** 2 + self.current_left_fit_m[1] * ran + self.current_left_fit_m[2]
+        right = self.current_right_fit_m[0] * ran ** 2 + self.current_right_fit_m[1] * ran + self.current_right_fit_m[2]
+        diff = np.absolute(right-left)
+        if np.any(diff>upper) or np.any(diff<lower): return False
+        return True
+
+    def curvature_check(self, thresh=500):
+        """Check for similar curvature"""
+        diff = abs(self.left_curverad - self.right_curverad)
+        if diff <=thresh:
+            return True
+        return False
 
     def find_new_lines(self, binary_warped, margin=100, minpix=50, plot=False, save=False):
         # Assuming you have created a warped binary image called "binary_warped"
@@ -246,6 +273,7 @@ class P4:
         return left_fit, right_fit
 
     def find_next_lines(self, binary_warped, margin=100):
+        """ Find lines based on previously found lane locations. Taken from udacity course"""
         left_fit=np.mean(self.left_fit, axis=0)
         right_fit=np.mean(self.right_fit, axis=0)
 

@@ -11,7 +11,7 @@ class Sourcepoints:
 
         self.source_points = []    # left-top, left_bottom, right_top, right_bottom
 
-        self.dest_points = np.float32([[0.25*w, 0],[0.25*w, h],[0.75*w, 0],[0.75*w, h]])
+        self.dest_points = np.float32([[0.1*w, 0],[0.1*w, h],[0.9*w, 0],[0.9*w, h]])
 
     def get_transformation_matrix(self):
         """Calculates a transformation matrix and its inverse for image warping"""
@@ -114,7 +114,7 @@ class Sourcepoints:
             plt.show()
 
 
-    def fit_lane_line(self, x_values, y_values, lengths, degree, image, min_y_factor=0.63):
+    def fit_lane_line(self, x_values, y_values, lengths, degree, image, min_y_factor=0.64):
         """Fit a lane line with np.polyfit and plot it in image
             param: x_values: x values of all HoughLines assigned to this lane line
             param: y_values: y values of all HoughLines assigned to this lane line

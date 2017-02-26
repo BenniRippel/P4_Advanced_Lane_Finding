@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 class TuneThreshold:
 
-    def __init__(self, file='./test_images/test3.jpg'):
+    def __init__(self, file='./test_images/test5.jpg'):
         self.img = cv2.imread(file)
         self.prep_img = []
 
@@ -123,7 +123,7 @@ class TuneThreshold:
         # named window
         cv2.namedWindow('Tune')
         # preprocess image
-        self.prep_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:, :, 0]
+        self.prep_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:, :, 1]
         # create trackbars
         cv2.createTrackbar('Lower Threshold X', 'Tune', 0, 255, self.null)
         cv2.createTrackbar('Upper Threshold X', 'Tune', 0, 255, self.null)
@@ -237,7 +237,7 @@ class TuneThreshold:
         return binary_output
 
 def main():
-    TuneThreshold().tune()
+    TuneThreshold().tune_preprocessing()
 # executes main() if script is executed directly as the main function and not loaded as module
 if __name__ == '__main__':
     main()
