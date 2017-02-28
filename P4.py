@@ -7,7 +7,7 @@ from collections import deque
 
 
 import Calibration
-import SourcePoints
+import TransformationMatrix
 
 class P4:
 
@@ -20,7 +20,7 @@ class P4:
         # transformation matrices
         self.M=[]
         self.Minv=[]
-        self.y_factor = 0.63
+        self.y_factor = 0.64
         # Define conversions in x and y from pixels space to meters
         self.ym_per_pix = 30 / 720  # meters per pixel in y dimension
         self.xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
@@ -48,12 +48,12 @@ class P4:
 
         output.write_videofile(out_file, audio=False)    # write video
 
-    def run_image(self, image='./test_images/test5.jpg', save = False):
+    def run_image(self, image='./test_images/test3.jpg', save = True):
         """Run the Lane Finding Pipeline on a single input image"""
         img = cv2.imread(image)    # read image
         warp = self.warp_image(img)   # calibrate, undistort and warp
         warped_bin = self.threshold_image(warp, plot=True, save=save)    # threshold image
-        self.fit_lines(warped_bin, plot=True, save=save)    # find lines in thresholded img
+        self.fit_lines(warped_bin, checks=False, plot=True, save=save)    # find lines in thresholded img
         self.draw_warped(warp, img, save=save)    # draw lines
         plt.show()
 
@@ -168,21 +168,21 @@ class P4:
             result = color_warp
         return result
 
-    def fit_lines(self, binary_warped, margin=50, minpix=50, plot=False, save=False):
-        """Udacity implementation of sliding Windows and fit polynomial"""
+    def fit_lines(self, binary_warped, margin=70, minpix=50, checks=True, plot=False, save=False):
+        """Fits the lane lines with find_line_by_margin() or find_new_lines, dependend on previously found lines and if
+        they passed the checks """
 
         # get left and right fit (find new lines if no good fit occured for several frames as well as ate the first frame)
         if not np.any(self.valid):
             self.current_left_fit_px, self.current_right_fit_px = self.find_new_lines(binary_warped, margin=margin,
-                                                                                      minpix=minpix)
+                                                                                      minpix=minpix,plot=plot, save=save)
         else:
             self.current_left_fit_px, self.current_right_fit_px = self.find_line_by_margin(binary_warped, margin=margin)
         # valid_line check
         # check for approx same curvature, for right horizontal distance and  approx parallel
 
-        #TODO: checks obs passt, wenn ja append True zu valid und den fit zu left/right fit
-        # append to deques
-        if self.lane_dist_check() and self.lane_parallel_check(binary_warped):
+        # append to deques if checks pass
+        if (self.lane_dist_check() and self.lane_parallel_check(binary_warped)) or not checks:
             self.left_fit.append(self.current_left_fit_px)
             self.right_fit.append(self.current_right_fit_px)
             self.valid.append(True)
@@ -443,7 +443,7 @@ class P4:
     def get_transform_matrices(self, image):
         """Get the source points for warping images to bird-eye view"""
         try:    # load image
-            self.M, self.Minv = SourcePoints.Sourcepoints(image, min_y_factor=self.y_factor).get_transformation_matrix()
+            self.M, self.Minv = TransformationMatrix.TransformationMatrix(image, min_y_factor=self.y_factor).get_transformation_matrix()
         except:
             print('Failed to get the transformation matrices for image warping!')
 
@@ -497,7 +497,6 @@ def main():
 
     P4(result_fldr='./output_images/').run_video()
     #P4(result_fldr='./output_images/').run_image()
-
 # executes main() if script is executed directly as the main function and not loaded as module
 if __name__ == '__main__':
     main()

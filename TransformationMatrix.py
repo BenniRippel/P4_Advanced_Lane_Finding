@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-class Sourcepoints:
+class TransformationMatrix:
     """Get the source points for warping an image to birds eye view"""
     #define 4 source points src = np.float32([[,],[,],[,],[,]])
     def __init__(self, image, w=1280, h=720, min_y_factor=0.64):
@@ -11,7 +11,7 @@ class Sourcepoints:
         self.min_y_factor = min_y_factor
         self.source_points = []    # left-top, left_bottom, right_top, right_bottom
 
-        self.dest_points = np.float32([[0.15*w, 0],[0.15*w, h],[0.85*w, 0],[0.85*w, h]])
+        self.dest_points = np.float32([[0.2*w, 0],[0.2*w, h],[0.8*w, 0],[0.8*w, h]])
 
     def get_transformation_matrix(self):
         """Calculates a transformation matrix and its inverse for image warping"""
@@ -259,7 +259,7 @@ def main():
     ## assigns the command line argument (usually the video file) to video_src
     #images_folder = args.folder_images
     #results_folder = args.results_folder
-    Sourcepoints().process()
+    TransformationMatrix().process()
 # executes main() if script is executed directly as the main function and not loaded as module
 if __name__ == '__main__':
     main()

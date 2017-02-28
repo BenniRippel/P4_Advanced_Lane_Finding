@@ -77,7 +77,7 @@ dst = np.float32(
 This resulted in the following source and destination points:
 
 | Source        | Destination   | 
-|:-------------:|:-------------:| 
+|:-------------:|:-------------:|
 | 585, 460      | 320, 0        | 
 | 203, 720      | 320, 720      |
 | 1127, 720     | 960, 720      |
