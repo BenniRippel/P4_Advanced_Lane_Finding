@@ -11,7 +11,7 @@ class Sourcepoints:
         self.min_y_factor = min_y_factor
         self.source_points = []    # left-top, left_bottom, right_top, right_bottom
 
-        self.dest_points = np.float32([[0.1*w, 0],[0.1*w, h],[0.9*w, 0],[0.9*w, h]])
+        self.dest_points = np.float32([[0.15*w, 0],[0.15*w, h],[0.85*w, 0],[0.85*w, h]])
 
     def get_transformation_matrix(self):
         """Calculates a transformation matrix and its inverse for image warping"""
