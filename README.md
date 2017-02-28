@@ -67,22 +67,19 @@ result in the following image, showing a distorted calibration image and the sam
 
 Camera Matrix:
 
-``
-[[  1.16008925e+03   0.00000000e+00   6.64903615e+02]
-``
-``
- [0.00000000e+00   1.15663362e+03   3.88209795e+02]
-``
-``
- [0.00000000e+00   0.00000000e+00   1.00000000e+00]]
-``
+| . | 1st col |  2nd col | 3rd col  | 
+|:---|:---:|:---:|:---:|
+|**1st row**|1.16008925e+03  | 0.00000000e+00 |  6.64903615e+02|
+|**2nd row**|0.0000000e+00  | 1.15663362e+03  | 3.88209795e+02|
+| **3rd row**|0.00000000e+00  | 0.00000000e+00  | 1.00000000e+00|
 
 
 Distortion Coefficients:
 
-``
-[-0.23707184 -0.09496979 -0.00138167 -0.00028962  0.10926155]]
-``
+| k1 | k2| p1| p1| k3|
+|---|---|---|---|---|
+|-0.23707184 | -0.09496979| -0.00138167| -0.00028962|  0.10926155|
+
 
 ###Pipeline (single images)
 
@@ -104,17 +101,36 @@ file 'TransformationMatrix.py', which is imported to 'P4.py' as an additional mo
 using simpler thresholding techniques and hough-lines. The fitted polynomials of an input image with straight lines are 
 used to extract 4 source points, defining an isosceles trapezoid, lying on the lane lines.
 
-source points
-x | y
---|--
-556| 474
-222| 719 
-725| 474 
-1114| 719
+Source Points
 
-- 
+ |x | y|
+|:---:|:---:|
+|556| 474|
+|222| 719 |
+|725| 474 |
+|1114| 719|
+
+These source points are mapped to the following destination points, with w being the image width and h the image height
+
+Destination Points:
+
+ |x | y|
+|:---:|:---:|
+|0.2*w| 0|
+|0.2*w| h |
+|0.8*w| 0 |
+|0.8*w| h|
+
+Using these points with the function 'cv2.getPerspectiveTransform' computes the transformation matrix and its inverse matrix.
+
+
+- Once the tranceformation matrix was calculated, the perspective transformation can take place. This procedure is 
+located in the function 'warp_image' (line 422, P4.py), using the function 'cv2.warpPerspective'. For convenience, the 
+function 'warp_image' undistorts its input image before transforming the perspective. Thus, when processing an image, 
+undistorting and warping happens with just one function call (line 63, function 'process_frame, file 'P4.py').
 
 ![alt text][image3]
+
 ####3. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 I used a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines 
 ![alt text][image4]
@@ -122,11 +138,11 @@ I used a combination of color and gradient thresholds to generate a binary image
 
 
 ####4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
-
+![alt text][image5]
 ####5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
 ####6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
-
+![alt text][image6]
 ###Pipeline (video)
 
 ####Provide a link to your final video output. Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!)
