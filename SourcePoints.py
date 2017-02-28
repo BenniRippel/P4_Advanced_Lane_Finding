@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 class Sourcepoints:
     """Get the source points for warping an image to birds eye view"""
     #define 4 source points src = np.float32([[,],[,],[,],[,]])
-    def __init__(self, image, w=1280, h=720):
+    def __init__(self, image, w=1280, h=720, min_y_factor=0.64):
         self.img = image
-
+        self.min_y_factor = min_y_factor
         self.source_points = []    # left-top, left_bottom, right_top, right_bottom
 
         self.dest_points = np.float32([[0.1*w, 0],[0.1*w, h],[0.9*w, 0],[0.9*w, h]])
@@ -114,7 +114,7 @@ class Sourcepoints:
             plt.show()
 
 
-    def fit_lane_line(self, x_values, y_values, lengths, degree, image, min_y_factor=0.64):
+    def fit_lane_line(self, x_values, y_values, lengths, degree, image):
         """Fit a lane line with np.polyfit and plot it in image
             param: x_values: x values of all HoughLines assigned to this lane line
             param: y_values: y values of all HoughLines assigned to this lane line
@@ -125,8 +125,8 @@ class Sourcepoints:
             return: image
         """
         if x_values and y_values:
-            y_max = image.shape[0]  # max y value of the image
-            min_y_value = min_y_factor * y_max  # min y value, i.e. y value of the top of the lane line
+            y_max = image.shape[0]-1  # max y value of the image
+            min_y_value = self.min_y_factor * y_max  # min y value, i.e. y value of the top of the lane line
             # calc weights dependend of line length
             weights = np.divide(lengths, sum(lengths))
             line = np.poly1d(np.polyfit(y_values, x_values, degree, w=weights))  # construct polynomial

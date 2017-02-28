@@ -20,6 +20,7 @@ class P4:
         # transformation matrices
         self.M=[]
         self.Minv=[]
+        self.y_factor = 0.63
         # Define conversions in x and y from pixels space to meters
         self.ym_per_pix = 30 / 720  # meters per pixel in y dimension
         self.xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
@@ -38,16 +39,16 @@ class P4:
         self.right_curverad = []
 
 
-    def run_video(self, video='./challenge_video.mp4'):
+    def run_video(self, video='./project_video.mp4'):
         """Run the Lane Finding Pipeline on a input video"""
         out_file = video[:-4]+'_output.mp4'   # output file
 
         clip = VideoFileClip(video)   #read video
-        output=clip.fl_image(self.process_frame)   # proces video; function expects color images
+        output=clip.fl_image(self.process_frame)   # process video; function expects color images
 
         output.write_videofile(out_file, audio=False)    # write video
 
-    def run_image(self, image='./test_images/test1.jpg', save = False):
+    def run_image(self, image='./test_images/test5.jpg', save = False):
         """Run the Lane Finding Pipeline on a single input image"""
         img = cv2.imread(image)    # read image
         warp = self.warp_image(img)   # calibrate, undistort and warp
@@ -68,52 +69,58 @@ class P4:
         return result
 
     def add_info_img(self, frame, img):
-        """Add the imm to the upper right corner of the frame, scale by 1/3"""
+        """Add the img to the upper right corner of the frame, scale by 1/3"""
         h, w, c = frame.shape
         h_n = int(h/3)
         w_n = int(w/3)
-        img = cv2.resize(img*255, (w_n, h_n), interpolation = cv2.INTER_AREA)
-        img = np.dstack((img, img, img))
+        img = np.dstack((img*255, img*255, img*255))
+        try:
+            # plot polynomials
+            left_fit = np.mean(self.left_fit, axis=0)
+            right_fit = np.mean(self.right_fit, axis=0)
+            ploty = np.linspace(0, img.shape[0] - 1, img.shape[0])
+            left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+            right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+            pts_l = np.array([[a,b] for a,b in zip(left_fitx, ploty)], np.int32)
+            pts_r = np.array([[a,b] for a,b in zip(right_fitx, ploty)], np.int32)
+            pts_l = pts_l.reshape((-1, 1, 2))
+            pts_r = pts_r.reshape((-1, 1, 2))
+            cv2.polylines(img, [pts_l], False, (0, 0, 255), 5)
+            cv2.polylines(img, [pts_r], False, (255, 0, 0), 5)
+        except:
+            pass
+        img = cv2.resize(img, (w_n, h_n), interpolation = cv2.INTER_AREA)
         frame[:h_n, -w_n:, :] = img
         return frame
 
     def write_to_frame(self, frame):
         """Write test to frame"""
         cv2.putText(frame, "Radius: %0.0f m" % (np.mean(self.radius)),
-                    tuple([50, 50]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        cv2.putText(frame, "Offset: %0.0f m" % (np.mean(self.offset)),
-                    tuple([50, 80]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    tuple([50, 50]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(frame, "Offset: %0.0f cm" % (np.mean(self.offset)),
+                    tuple([50, 80]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         return frame
 
-    def calc_rad_curvature(self, lefty, leftx, righty, rightx):
+    def calc_radius_and_offset(self, frame):
         """Radius of curvature taken from udacity course"""
-
-        left_eval = np.max(lefty)
-        right_eval = np.max(righty)
-
-        # Fit new polynomials to x,y in world space
-        self.current_left_fit_m = np.polyfit(lefty * self.ym_per_pix, leftx * self.xm_per_pix, 2)
-        self.current_right_fit_m = np.polyfit(righty * self.ym_per_pix, rightx * self.xm_per_pix, 2)
-        # Calculate the new radii of curvature
-        self.left_curverad = ((1 + (2 * self.current_left_fit_m[0] * left_eval * self.ym_per_pix +
-                                    self.current_left_fit_m[1]) ** 2) ** 1.5) / np.absolute(2 * self.current_left_fit_m[0])
-        self.right_curverad = ((1 + (2 * self.current_right_fit_m[0] * right_eval * self.ym_per_pix +
-                                     self.current_right_fit_m[1]) ** 2) ** 1.5) / np.absolute(2 * self.current_right_fit_m[0])
-
-    def calc_car_offset(self, frame):
-        """calculates the cars offset from the center of the lane"""
-        xm_per_pix = 3.7 / 700  # meters per pixel in x dimension
-
-        left_fit=np.mean(self.left_fit, axis=0)
-        right_fit=np.mean(self.right_fit, axis=0)
 
         eval = frame.shape[0]-1
 
-        left_l = left_fit[0] * eval ** 2 + left_fit[1] * eval + left_fit[2]
-        right_l = right_fit[0] * eval ** 2 + right_fit[1] * eval + right_fit[2]
+        # radius
+        # Calculate the new radii of curvature
+        self.left_curverad = ((1 + (2 * self.current_left_fit_m[0] * eval * self.ym_per_pix +
+                                    self.current_left_fit_m[1]) ** 2) ** 1.5) / np.absolute(2 * self.current_left_fit_m[0])
+        self.right_curverad = ((1 + (2 * self.current_right_fit_m[0] * eval * self.ym_per_pix +
+                                     self.current_right_fit_m[1]) ** 2) ** 1.5) / np.absolute(2 * self.current_right_fit_m[0])
+        self.radius.append((self.left_curverad + self.right_curverad) * 0.5)
 
-        self.offset.append((np.mean([left_l, right_l])-frame.shape[1])*xm_per_pix)
+        # offset
+        left_fit_bottom = self.current_left_fit_px[0] * eval ** 2 + self.current_left_fit_px[1] * eval + \
+                          self.current_left_fit_px[2]
+        right_fit_bottom = self.current_right_fit_px[0] * eval ** 2 + self.current_right_fit_px[1] * eval + \
+                           self.current_right_fit_px[2]
+        self.offset.append(((right_fit_bottom+left_fit_bottom)*0.5 - frame.shape[1]*0.5)*self.xm_per_pix*100)
 
     def draw_warped(self, warped, image, save=False):
         """Draw found lane lines in RGB Image"""
@@ -121,55 +128,72 @@ class P4:
         color_warp = np.zeros_like(warped).astype(np.uint8)
 
         # define ploty, left_fitx, right_fit_x
-        left_fit=np.mean(self.left_fit, axis=0)
-        right_fit=np.mean(self.right_fit, axis=0)
-        ploty = np.linspace(0, warped.shape[0] - 1, warped.shape[0])
-        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+        try:
+            left_fit=np.mean(self.left_fit, axis=0)
+            right_fit=np.mean(self.right_fit, axis=0)
+            ploty = np.linspace(0, warped.shape[0] - 1, warped.shape[0])
+            left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+            right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
 
-        # Recast the x and y points into usable format for cv2.fillPoly()
-        pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
-        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
-        pts = np.hstack((pts_left, pts_right))
+            # Recast the x and y points into usable format for cv2.fillPoly()
+            pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+            pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+            pts = np.hstack((pts_left, pts_right))
 
-        # Draw the lane onto the warped blank image
-        cv2.fillPoly(color_warp, np.int_([pts]), (0, 255, 0))
+            # Draw the lane onto the warped blank image
+            cv2.fillPoly(color_warp, np.int_([pts]), (255, 102, 102))
+            # add left/right and center line
+            mean_fit = np.mean([left_fitx, right_fitx], axis=0)
+            pts_l = np.array([[a,b] for a,b in zip(left_fitx, ploty)], np.int32)
+            pts_r = np.array([[a,b] for a,b in zip(right_fitx, ploty)], np.int32)
+            pts_m = np.array([[a,b] for a,b in zip(mean_fit, ploty)], np.int32)
+            pts_l = pts_l.reshape((-1, 1, 2))
+            pts_r = pts_r.reshape((-1, 1, 2))
+            pts_m = pts_m.reshape((-1, 1, 2))
+            cv2.polylines(color_warp, [pts_l], False, (0, 255, 0), 20)
+            cv2.polylines(color_warp, [pts_r], False, (0, 255, 0), 20)
+            cv2.polylines(color_warp, [pts_m], False, (255, 255, 0), 5)
 
-        # Warp the blank back to original image space using inverse perspective matrix (Minv)
-        newwarp = cv2.warpPerspective(color_warp, self.Minv, (image.shape[1], image.shape[0]))
-        # Combine the result with the original image
-        result = cv2.addWeighted(self.undistort_image(image), 1, newwarp, 0.3, 0)
-        result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
-        plt.figure(figsize=(8,6), dpi=300)
-        plt.imshow(result)
-        if save:
-            plt.savefig(self.results + 'result.png', bbox_inches='tight')
+            # Warp the blank back to original image space using inverse perspective matrix (Minv)
+            newwarp = cv2.warpPerspective(color_warp, self.Minv, (image.shape[1], image.shape[0]))
+            # Combine the result with the original image
+            result = cv2.addWeighted(self.undistort_image(image), 1, newwarp, 0.4, 0)
+            result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+            plt.figure(figsize=(8,6), dpi=300)
+            plt.imshow(result)
+            if save:
+                plt.savefig(self.results + 'result.png', bbox_inches='tight')
+        except:
+            print('Could not draw lane lines...')
+            result = color_warp
         return result
 
-    def fit_lines(self, binary_warped, margin=100, minpix=50, plot=False, save=False):
+    def fit_lines(self, binary_warped, margin=50, minpix=50, plot=False, save=False):
         """Udacity implementation of sliding Windows and fit polynomial"""
 
         # get left and right fit (find new lines if no good fit occured for several frames as well as ate the first frame)
         if not np.any(self.valid):
-            self.current_left_fit_px, self.current_right_fit_px = self.find_new_lines(binary_warped)
+            self.current_left_fit_px, self.current_right_fit_px = self.find_new_lines(binary_warped, margin=margin,
+                                                                                      minpix=minpix)
         else:
-            self.current_left_fit_px, self.current_right_fit_px = self.find_next_lines(binary_warped)
+            self.current_left_fit_px, self.current_right_fit_px = self.find_line_by_margin(binary_warped, margin=margin)
         # valid_line check
         # check for approx same curvature, for right horizontal distance and  approx parallel
 
         #TODO: checks obs passt, wenn ja append True zu valid und den fit zu left/right fit
         # append to deques
-        print('Lane Check: ', self.lane_dist_check())
-        if self.lane_dist_check():
+        if self.lane_dist_check() and self.lane_parallel_check(binary_warped):
             self.left_fit.append(self.current_left_fit_px)
             self.right_fit.append(self.current_right_fit_px)
             self.valid.append(True)
+            self.calc_radius_and_offset(binary_warped)
             self.radius.append((self.left_curverad + self.right_curverad) * 0.5)
 
         else:
             self.valid.append(False)
 
-    def lane_dist_check(self, upper=6, lower=1):
+    def lane_dist_check(self, upper=5.5, lower=2.5):
+        """Checks if the distance between the lane lines is between lower and upper threshold in meters"""
         ran=np.arange(1,21)   # range from 1 - 20 m
         left = self.current_left_fit_m[0] * ran ** 2 + self.current_left_fit_m[1] * ran + self.current_left_fit_m[2]
         right = self.current_right_fit_m[0] * ran ** 2 + self.current_right_fit_m[1] * ran + self.current_right_fit_m[2]
@@ -177,12 +201,14 @@ class P4:
         if np.any(diff>upper) or np.any(diff<lower): return False
         return True
 
-    def curvature_check(self, thresh=500):
-        """Check for similar curvature"""
-        diff = abs(self.left_curverad - self.right_curverad)
-        if diff <=thresh:
-            return True
-        return False
+    def lane_parallel_check(self, frame,  thresh = 1):
+        "Checks if the lines are parallel at different locations "
+        ran=np.arange(1,21)   # range from 1 - 20 m
+        left = self.current_left_fit_m[0] * ran ** 2 + self.current_left_fit_m[1] * ran + self.current_left_fit_m[2]
+        right = self.current_right_fit_m[0] * ran ** 2 + self.current_right_fit_m[1] * ran + self.current_right_fit_m[2]
+        diff = (right-left)-np.mean(right-left)
+        if np.any(diff>thresh): return False
+        return True
 
     def find_new_lines(self, binary_warped, margin=100, minpix=50, plot=False, save=False):
         # Assuming you have created a warped binary image called "binary_warped"
@@ -231,7 +257,7 @@ class P4:
             # Append these indices to the lists
             left_lane_inds.append(good_left_inds)
             right_lane_inds.append(good_right_inds)
-            # If you found > minpix pixels, recenter next window on their mean position
+            # If you found > minpix pixels, recenter next window on their median position
             if len(good_left_inds) > minpix:
                 leftx_current = np.int(np.median(nonzerox[good_left_inds]))
             if len(good_right_inds) > minpix:
@@ -251,8 +277,10 @@ class P4:
         left_fit = np.polyfit(lefty, leftx, 2)
         right_fit = np.polyfit(righty, rightx, 2)
 
-        # calc radius of curvature
-        self.calc_rad_curvature(lefty, leftx, righty, rightx)
+        # Fit new polynomials to x,y in world space
+        self.current_left_fit_m = np.polyfit(lefty * self.ym_per_pix, leftx * self.xm_per_pix, 2)
+        self.current_right_fit_m = np.polyfit(righty * self.ym_per_pix, rightx * self.xm_per_pix, 2)
+
 
         if plot:
             # Generate x and y values for plotting
@@ -272,7 +300,7 @@ class P4:
                 plt.savefig(self.results + 'test_lane_detection.png', bbox_inches='tight')
         return left_fit, right_fit
 
-    def find_next_lines(self, binary_warped, margin=100):
+    def find_line_by_margin(self, binary_warped, margin=100):
         """ Find lines based on previously found lane locations. Taken from udacity course"""
         left_fit=np.mean(self.left_fit, axis=0)
         right_fit=np.mean(self.right_fit, axis=0)
@@ -296,8 +324,10 @@ class P4:
         # Fit a second order polynomial to each
         left_fit = np.polyfit(lefty, leftx, 2)
         right_fit = np.polyfit(righty, rightx, 2)
-        # calc radius of curvature
-        self.calc_rad_curvature(lefty, leftx, righty, rightx)
+
+        # Fit new polynomials to x,y in world space
+        self.current_left_fit_m = np.polyfit(lefty * self.ym_per_pix, leftx * self.xm_per_pix, 2)
+        self.current_right_fit_m = np.polyfit(righty * self.ym_per_pix, rightx * self.xm_per_pix, 2)
 
         return left_fit, right_fit
 
@@ -309,7 +339,6 @@ class P4:
 
         grad = np.zeros_like(grad_1)
         grad[(grad_1 == 1) | (grad_2 == 1)]=1
-
         ret = np.zeros_like(grad_1)
         ret[(grad == 1) | (self.combine_color(image) == 1)] = 1
 
@@ -322,7 +351,7 @@ class P4:
             fig=plt.figure(figsize=(8,6), dpi=300)
             fig.add_subplot(1, 2, 1)
             plt.imshow(stacked*255)
-            plt.title('Stacked Threshold\n S & L-Channel Color Threshold (green)\n and Gradient Threshold (blue)',
+            plt.title('Stacked Threshold\n Color Threshold (green)\n and Gradient Threshold (blue)',
                       fontsize=10)
             fig.add_subplot(1, 2, 2)
             plt.imshow(ret*255, cmap='gray')
@@ -332,18 +361,20 @@ class P4:
         return ret
 
     def grad_thresh(self, image, chan=1):
-        if chan==1:
-            m_low = 30
+        if len(image.shape) == 3:
+            if chan==1:
+                m_low = 30
+            else:
+                m_low = 20
+            channel = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,chan]
         else:
-            m_low = 20
-        channel = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,chan]
+            channel = image
         # Apply each of the thresholding functions
-        th_x=self.abs_sobel_thresh(channel, orient='x', sobel_kernel=7, thresh=(30, 255))
-        th_y=self.abs_sobel_thresh(channel, orient='y', sobel_kernel=7, thresh=(35, 255))
         th_m=self.mag_thresh(channel, sobel_kernel=5, thresh=(m_low, 255))
         th_d=self.dir_threshold(channel, sobel_kernel=7, thresh=(-0.56, 1.3))
         ret = np.zeros_like(channel)
-        ret[((th_m == 1) & (th_d == 1)) | ((th_x == 1) & (th_y == 1)) | (self.combine_color(image) == 1)] = 1
+        ret[((th_m == 1) & (th_d == 1)) | (self.combine_color(image) == 1)] = 1
+
         return ret
 
     def select_color(self, channel, lower, upper):
@@ -354,28 +385,14 @@ class P4:
 
     def combine_color(self, image):
         """Combine colorchanel thresholds"""
-        white = self.select_color(cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,1], 200, 255)
-        yellow = self.select_color(cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,2], 185, 255)
+
+        l = self.select_color(cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,1], 205, 245)
+        s = self.select_color(cv2.cvtColor(image, cv2.COLOR_BGR2HLS)[:,:,2], 100, 180)
+
         # Combine thresholds
-        combined = np.zeros_like(white)
-        combined[((white == 1) | (yellow == 1))] = 1
+        combined = np.zeros_like(s)
+        combined[((l == 1) | (s == 1))] = 1
         return combined
-
-    def abs_sobel_thresh(self, channel, orient='x', sobel_kernel=3, thresh=(0, 255)):
-        """Apply 'Sobel Gradient' threshold to an image channel """
-        # Take the derivative in x or y given orient = 'x' or 'y'
-        if orient == 'x':
-            sobel = cv2.Sobel(channel, cv2.CV_64F, 1, 0, ksize=sobel_kernel)
-        else:
-            sobel = cv2.Sobel(channel, cv2.CV_64F, 0, 1, ksize=sobel_kernel)
-        # Take the absolute value of the derivative or gradient
-        abs = np.absolute(sobel)
-        # Scale to 8-bit (0 - 255) then convert to type = np.uint8
-        scaled = np.uint8(255 * abs / np.max(abs))
-
-        binary_output = np.zeros_like(scaled)
-        binary_output[(scaled >= min(thresh)) & (scaled <= max(thresh))] = 1
-        return binary_output
 
     def mag_thresh(self, channel, sobel_kernel=3, thresh=(0, 255)):
         """Apply 'Magnitude of the Gradient' threshold to an image channel """
@@ -426,7 +443,7 @@ class P4:
     def get_transform_matrices(self, image):
         """Get the source points for warping images to bird-eye view"""
         try:    # load image
-            self.M, self.Minv = SourcePoints.Sourcepoints(image).get_transformation_matrix()
+            self.M, self.Minv = SourcePoints.Sourcepoints(image, min_y_factor=self.y_factor).get_transformation_matrix()
         except:
             print('Failed to get the transformation matrices for image warping!')
 
@@ -477,17 +494,9 @@ class P4:
 
 
 def main():
-    #import argparse
-    #parser = argparse.ArgumentParser(description='Calibrates a camera')
-    #parser.add_argument('folder_images', type=str, help='The folder containing the calibration images')
-    #parser.add_argument('results_folder', type=str, help='The folder where the results are saved')
-    #args = parser.parse_args()
-    ## assigns the command line argument (usually the video file) to video_src
-    #images_folder = args.folder_images
-    #results_folder = args.results_folder
 
     P4(result_fldr='./output_images/').run_video()
-    # P4(result_fldr='./output_images/').run_image()
+    #P4(result_fldr='./output_images/').run_image()
 
 # executes main() if script is executed directly as the main function and not loaded as module
 if __name__ == '__main__':

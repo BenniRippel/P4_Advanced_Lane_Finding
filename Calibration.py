@@ -31,7 +31,6 @@ class Calibration:
         self.rms = 0
 
     def run(self):
-        # linke Cam Mono
         img_p, obj_p = self.prep_calib(self.MonoLeft)
         self.rms, self.camera_matrix, self.dist_coefs = self.calibrate(obj_p, img_p)
         self.print_results()

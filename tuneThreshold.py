@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import glob
 
 class TuneThreshold:
 
@@ -32,13 +33,15 @@ class TuneThreshold:
 
         # Combine thresholds
         combined = np.zeros_like(self.prep_img)
-        combined[((th_m == 1) & (th_d == 1)) | ((th_x == 1) & (th_y == 1))] = 1
+        # combined[((th_m == 1) & (th_d == 1)) | ((th_x == 1) & (th_y == 1))] = 1
+        combined[((th_m == 1) & (th_d == 1)) ] = 1
 
         c = np.zeros_like(self.prep_img)
         c[(combined == 1) | (self.combine_color()==1)] = 1
 
 
         fig=plt.figure()
+        plt.title('Combined gradients')
         plt.imshow(combined, cmap='gray')
 
         fig = plt.figure()
@@ -77,34 +80,117 @@ class TuneThreshold:
         th_d=self.dir_threshold(channel, sobel_kernel=7, thresh=(-0.56, 1.3))
         ret = np.zeros_like(channel)
         ret[((th_m == 1) & (th_d == 1)) | ((th_x == 1) & (th_y == 1)) | (self.combine_color(image) == 1)] = 1
+
         return ret
 
     def combine_color(self):
-        white = self.select_color(200, 255, 1)
-        yellow = self.select_color(185, 255, 2)
+        h = self.select_color(19, 25, 0)
+        l = self.select_color(210, 246, 1)
+        s = self.select_color(150, 180, 2)
 
         # Combine thresholds
-        combined = np.zeros_like(white)
-        combined[((white == 1) | (yellow == 1))] = 1
+        combined = np.zeros_like(h)
+        combined[((h == 1) | (l == 1) | (s == 1))] = 1
 
-        # fig=plt.figure()
-        # plt.imshow(combined, cmap='gray')
         return combined
 
-
-    def tune_preprocessing(self):
+    def tune_gradient_on_thresh_color(self):
         # named window
         cv2.namedWindow('Tune')
+        # test images
+        images = glob.glob('./test_images/*.jpg')
+        # create trackbars
+        cb = self.null
+        cv2.createTrackbar('Image', 'Tune', 0, len(images)-1, cb)
+        cv2.createTrackbar('Kernel Dir', 'Tune', 1, 15, self.null)
+        cv2.createTrackbar('Lower Threshold Dir', 'Tune', 0, 314, self.null)
+        cv2.createTrackbar('Upper Threshold Dir', 'Tune', 0, 314, self.null)
+
+        img_idx=0
+        kernel_d=7
+        lower_d=-0.56
+        upper_d=1.3
+
+        while True:
+            self.img=cv2.imread(images[img_idx])
+            # h = self.select_color(19, 25, 0)
+            l = self.select_color(249, 255, 1)
+            s = self.select_color(210, 255, 2)
+            # Combine thresholds
+            self.prep_img = self.img
+            self.prep_img[((l == 0) | (s == 0))] = 0
+
+            thresh = self.dir_threshold(kernel_d, lower_d, upper_d)
+            comb = np.zeros_like(thresh)
+            comb[(thresh == 1)] = 1
+            cv2.imshow('gae', self.prep_img)
+            cv2.imshow('Tune', 255*thresh)
+            k = cv2.waitKey(1) & 0xFF
+            if k == 27:
+                break
+
+            # get current positions of four trackbars
+            img_idx = cv2.getTrackbarPos('Image', 'Tune')
+            kernel_d = cv2.getTrackbarPos('Kernel Dir', 'Tune')*2+1
+            lower_d = (cv2.getTrackbarPos('Lower Threshold Dir', 'Tune')-157) /100.0
+            upper_d = (cv2.getTrackbarPos('Upper Threshold Dir', 'Tune')-157) /100.0
+
+
+
+    def show_color_thresholds(self):
+        # named window
+        cv2.namedWindow('Tune')
+        # test images
+        images = glob.glob('./test_images/*.jpg')
+        # create trackbars
+        cb = self.null
+        cv2.createTrackbar('Image', 'Tune', 0, len(images)-1, cb)
+        img_idx=0
+
+        while True:
+            self.img=cv2.imread(images[img_idx])
+            # h = self.select_color(19, 25, 0)
+            l = self.select_color(205, 245, 1)
+            s = self.select_color(100, 180, 2)
+
+            # Combine thresholds
+            combined = np.zeros_like(s)
+            combined[((l == 1) | (s == 1))] = 1
+
+            cv2.imshow('Tune', 255*combined)
+            cv2.imshow('IMG', self.img)
+            k = cv2.waitKey(1) & 0xFF
+            if k == 27:
+                break
+
+            # get current positions of four trackbars
+            img_idx = cv2.getTrackbarPos('Image', 'Tune')
+
+    def tune_color(self):
+        # named window
+        cv2.namedWindow('Tune')
+        # test images
+        images = glob.glob('./test_images/*.jpg')
+
+
         # create trackbars
         cb = self.select_color
         cv2.createTrackbar('Lower Threshold', 'Tune', 0, 255, cb)
         cv2.createTrackbar('Upper Threshold', 'Tune', 0, 255, cb)
+        cv2.createTrackbar('Channel', 'Tune', 0, 2, cb)
+        cv2.createTrackbar('Image', 'Tune', 0, len(images)-1, cb)
         lower = 0
         upper=255
+        img_idx = 0
+        chan=0
+
         while True:
-            thresh = cb(lower, upper)
+            self.img=cv2.imread(images[img_idx])
+            thresh = cb(lower, upper, chan)
 
             cv2.imshow('Tune', 255*thresh)
+            cv2.imshow('Image', self.img)
+
             k = cv2.waitKey(1) & 0xFF
             if k == 27:
                 break
@@ -112,6 +198,8 @@ class TuneThreshold:
             # get current positions of four trackbars
             lower = cv2.getTrackbarPos('Lower Threshold', 'Tune')
             upper = cv2.getTrackbarPos('Upper Threshold', 'Tune')
+            chan = cv2.getTrackbarPos('Channel', 'Tune')
+            img_idx = cv2.getTrackbarPos('Image', 'Tune')
 
     def select_color(self, lower, upper, channel=2):
         chan = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:, :, channel]
@@ -157,9 +245,9 @@ class TuneThreshold:
         self.prep_img = cv2.cvtColor(self.img, cv2.COLOR_BGR2HLS)[:, :, 1]
         # create trackbars
         #cb = self.dir_threshold
-        # cv2.createTrackbar('Kernel Dir', 'Tune', 1, 15, self.null)
-        # cv2.createTrackbar('Lower Threshold Dir', 'Tune', 0, 314, self.null)
-        # cv2.createTrackbar('Upper Threshold Dir', 'Tune', 0, 314, self.null)
+        cv2.createTrackbar('Kernel Dir', 'Tune', 1, 15, self.null)
+        cv2.createTrackbar('Lower Threshold Dir', 'Tune', 0, 314, self.null)
+        cv2.createTrackbar('Upper Threshold Dir', 'Tune', 0, 314, self.null)
         cv2.createTrackbar('Kernel Mag', 'Tune', 1, 15, self.null)
         cv2.createTrackbar('Lower Threshold Mag', 'Tune', 0, 255, self.null)
         cv2.createTrackbar('Upper Threshold Mag', 'Tune', 0, 255, self.null)
@@ -185,9 +273,9 @@ class TuneThreshold:
                 break
 
             # get current positions of four trackbars
-            # kernel_d = cv2.getTrackbarPos('Kernel Dir', 'Tune')*2+1
-            # lower_d = (cv2.getTrackbarPos('Lower Threshold Dir', 'Tune')-157) /100.0
-            # upper_d = (cv2.getTrackbarPos('Upper Threshold Dir', 'Tune')-157) /100.0
+            kernel_d = cv2.getTrackbarPos('Kernel Dir', 'Tune')*2+1
+            lower_d = (cv2.getTrackbarPos('Lower Threshold Dir', 'Tune')-157) /100.0
+            upper_d = (cv2.getTrackbarPos('Upper Threshold Dir', 'Tune')-157) /100.0
             kernel_m = cv2.getTrackbarPos('Kernel Mag', 'Tune')*2+1
             lower_m = cv2.getTrackbarPos('Lower Threshold Mag', 'Tune')
             upper_m = cv2.getTrackbarPos('Upper Threshold Mag', 'Tune')
@@ -237,7 +325,7 @@ class TuneThreshold:
         return binary_output
 
 def main():
-    TuneThreshold().tune_preprocessing()
+    TuneThreshold().show_color_thresholds()
 # executes main() if script is executed directly as the main function and not loaded as module
 if __name__ == '__main__':
     main()
