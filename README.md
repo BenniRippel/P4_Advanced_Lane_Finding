@@ -26,7 +26,6 @@ The steps are the following:
 [image6]: ./output_images/test_lane_detection.png "Fitted Lane"
 [image7]: ./output_images/result.png "Result Image"
 
-[video1]: ./project_video_output.mp4 "Video"
 
 ###Camera Calibration
 
@@ -149,23 +148,23 @@ used to extract 4 source points lying on the lane lines, defining an isosceles t
 
 **Source Points:**
 
- |x | y|
+| x | y |
 |:---:|:---:|
-|556| 474|
-|222| 719 |
-|725| 474 |
-|1114| 719|
+|556 | 474 |
+|222 | 719 |
+|725 | 474 |
+|1114 | 719 |
 
 These source points are mapped to the following destination points, with w being the image width and h the image height
 
 **Destination Points:**
 
- |x | y|
+| x | y |
 |:---:|:---:|
-|0.2*w| 0|
-|0.2*w| h |
-|0.8*w| 0 |
-|0.8*w| h|
+|0.2*w | 0 |
+|0.2*w | h |
+|0.8*w | 0 |
+|0.8*w | h |
 
 Using these points with the function 'cv2.getPerspectiveTransform' computes the transformation matrix and its inverse matrix.
 The transformation matrix is used for all perspective transformations in this project, assuming that the camera is not 
