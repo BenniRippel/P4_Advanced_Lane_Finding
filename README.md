@@ -27,9 +27,9 @@ The steps are the following:
 [image7]: ./output_images/result.png "Result Image"
 
 
-###Camera Calibration
+### Camera Calibration
 
-####1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
+#### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
 
 The code for camera calibration is located in the file 'Calibration.py'. It may be used as a standalone tool, although 
 for this project it is implemented as an additional module within the projects main file 'P4.py'.
@@ -83,7 +83,7 @@ result in the following image, showing a distorted calibration image and the sam
 |-0.23707184 | -0.09496979| -0.00138167| -0.00028962|  0.10926155|
 
 
-###Pipeline (single images)
+### Pipeline (single images)
 
 The code for finding lane lines on a single image is located in the file 'P4.py'. Within the class 'P4' a function 
 'run_image' is defined (line 52), that reads a selected image and undistorts it. The undistorted image is converted into 
@@ -93,7 +93,7 @@ as well as the radius of curvature of the lane and the offset of the car to the 
 draws the lane lines in the original image. All these steps are described below.
 
 
-####1. Provide an example of a distortion-corrected image.
+#### 1. Provide an example of a distortion-corrected image.
 To demonstrate the distortion effects on images taken from the front of a car, the function 'cv2.undistort' was used 
 with one of the test images. The effect is not as obvious as in the above image, but definitely present.
 
@@ -101,7 +101,7 @@ with one of the test images. The effect is not as obvious as in the above image,
 ![alt text][image2]
 
 
-####2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
+#### 2. Describe how (and identify where in your code) you used color transforms, gradients or other methods to create a thresholded binary image.  Provide an example of a binary image result.
 A binary image is created in the function 'threshold_image' (line 346, P4.py), where the binary images created by 
 gradient thresholds on the S-colorchannel and the L-colorchannel of an HLS-Image are combined with binary images created 
 by color thresholding the S- and L-channel. All 4 binary images are combined using 'OR'- conditions.
@@ -135,7 +135,7 @@ thresholded using the function 'select_color' (line 399) and combined with an 'O
 The next image shows an example of a binary image.
 ![alt text][image4]
 
-####3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
+#### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 A perspective transform is performed, using the function 'cv2.warpPerspective', which needs a transformation matrix to work.
 
 The transformation matrix is obtained using the function 'get_transform_matrix' of the class 'TransformationMatrix' in the 
@@ -177,7 +177,7 @@ warping happens right after color and gradient thresholding (line 57 in function
 
 ![alt text][image3]
 
-####4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
+#### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 After preprocessing the input image resulting in a perspective transformed binary image, the lane lines are identified 
 within the function 'fit_lines' (lines 176-196). 
 
@@ -210,7 +210,7 @@ function 'find_new_lines' is called with the above functionality. If valid lines
 If the new lane fits pass the lane distance check (defined: lines 198-205, called: line 188), which tests that the 
 distance between the lanes is in the range of 2m to 6m, they are appended to the list of valid fits.
   
-####5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
+#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 The radius of curvature and the position of the vehicle with respect to the lane center are calculated within the function 
 'calc_radius_and_offset', defined in lines 108-126. This function gets called within the function 'fit_lines' (line 193),
 but only if the current fit is valid.
@@ -228,13 +228,13 @@ The mean value of both calculated values, radius and offset, are printed in ever
 'write to frame' (lines 99-106) 
 
 
-####6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
+#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 ![alt text][image6]
-###Pipeline (video)
+### Pipeline (video)
 As described above, the main difference between the single image pipeline and the video pipeline is the temporal information
 shared between frames. This helps to smooth the output. This is noticeable when the car drives over bumps or through shadows.
 
-####Provide a link to your final video output. Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!)
+#### Provide a link to your final video output. Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!)
 The processed project video can be found here:
 
 ./project_video_output.mp4
@@ -242,9 +242,9 @@ The processed project video can be found here:
 The challenge video is:
 
 ./challenge_video_output
-###Discussion
+### Discussion
 
-####Briefly discuss any problems / issues you faced in your implementation of this project. Where will your pipeline likely fail? What could you do to make it more robust?
+#### Briefly discuss any problems / issues you faced in your implementation of this project. Where will your pipeline likely fail? What could you do to make it more robust?
 **Problems during implementation**
 
 The hardest part was tuning the gradient and color thresholds, especially for the challenge video. Tuning those parameters 
